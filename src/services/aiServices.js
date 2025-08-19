@@ -29,10 +29,22 @@ export const analyzeTextForCredentials = async (text, options = {}) => {
           "Content-Type": "application/json"
         },
         body: JSON.stringify({
-          contents: [{
-            parts: [{ text }]
-          }]
-        })
+  contents: [{
+    parts: [{
+      text: `Przeanalizuj poniższą wiadomość i zwróć dane wyłącznie w formacie JSON zgodnym z tym schematem:
+{
+  "ftp_accounts": [{"login": "", "host": "", "password": ""}],
+  "websites": [""],
+  "domains": [""],
+  "mail_accounts": [{"email": "", "password": ""}]
+}
+Jeżeli dane są nieznane, pozostaw puste pola. Nie dodawaj żadnych wyjaśnień, tylko czysty JSON.
+
+WIADOMOŚĆ:
+${text}`
+    }]
+  }]
+})
       });
 
       if (!response.ok) {
@@ -46,7 +58,13 @@ export const analyzeTextForCredentials = async (text, options = {}) => {
       const aiText = data.candidates?.[0]?.content?.parts?.[0]?.text || "";
 
       // Use local simulation to parse AI output into structured data
-      return simulateAIAnalysis(aiText || text, options);
+      try {
+  const parsed = JSON.parse(aiText);
+  return parsed; // jeśli AI zwróci JSON w oczekiwanym formacie
+} catch (e) {
+  // jeśli AI zwróciło zwykły tekst, użyj fallback regexowy
+  return simulateAIAnalysis(aiText || text, options);
+}
     } catch (error) {
       console.warn("AI API error, falling back to local analysis:", error);
       return simulateAIAnalysis(text, options);
